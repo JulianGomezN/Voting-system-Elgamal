@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-plus-circle crypto-icon"></i>
+                    <h2>Crear Nueva Elección</h2>
+                    <p class="text-muted">Configura una nueva elección con cifrado ElGamal</p>
+                </div>
+                
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">
+                            <i class="fas fa-heading"></i> Título de la Elección
+                        </label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">
+                            <i class="fas fa-align-left"></i> Descripción
+                        </label>
+                        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="start_date" class="form-label">
+                                    <i class="fas fa-calendar-start"></i> Fecha y Hora de Inicio
+                                </label>
+                                <input type="datetime-local" class="form-control" id="start_date" name="start_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="end_date" class="form-label">
+                                    <i class="fas fa-calendar-times"></i> Fecha y Hora de Fin
+                                </label>
+                                <input type="datetime-local" class="form-control" id="end_date" name="end_date" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Información de Seguridad:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Se generarán automáticamente claves ElGamal únicas para esta elección</li>
+                            <li>Los votos se cifrarán usando la clave pública</li>
+                            <li>Solo el administrador puede descifrar los resultados usando la clave privada</li>
+                            <li>La integridad de cada voto será verificada mediante hash SHA-256</li>
+                        </ul>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-plus-circle"></i> Crear Elección
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-cog"></i> Proceso de Creación</h5>
+                <div class="row">
+                    <div class="col-md-3 text-center">
+                        <i class="fas fa-key crypto-icon"></i>
+                        <h6>1. Generación de Claves</h6>
+                        <p>Se generan claves ElGamal únicas</p>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <i class="fas fa-database crypto-icon"></i>
+                        <h6>2. Almacenamiento Seguro</h6>
+                        <p>Las claves se almacenan de forma segura</p>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <i class="fas fa-users crypto-icon"></i>
+                        <h6>3. Agregar Candidatos</h6>
+                        <p>Después podrás agregar candidatos</p>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <i class="fas fa-vote-yea crypto-icon"></i>
+                        <h6>4. Iniciar Votación</h6>
+                        <p>Los usuarios podrán votar de forma segura</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

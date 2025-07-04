@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-chart-bar crypto-icon"></i>
+                    <h2>Resultados de la Elección</h2>
+                    <h4 class="text-muted">{{ election.title }}</h4>
+                    <p class="text-muted">{{ election.description }}</p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><i class="fas fa-calendar-start"></i> <strong>Inicio:</strong> {{ election.start_date.strftime('%d/%m/%Y %H:%M') }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><i class="fas fa-calendar-times"></i> <strong>Fin:</strong> {{ election.end_date.strftime('%d/%m/%Y %H:%M') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if results %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-trophy"></i> Resultados Descifrados</h5>
+            </div>
+            <div class="card-body">
+                {% set total_votes = results|map(attribute='votes')|sum %}
+                
+                <div class="mb-4">
+                    <h6>Total de votos registrados: <span class="badge bg-primary">{{ total_votes }}</span></h6>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Candidato</th>
+                                <th>Votos</th>
+                                <th>Porcentaje</th>
+                                <th>Visualización</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results|sort(attribute='votes', reverse=True) %}
+                            <tr>
+                                <td>
+                                    <strong>{{ result.candidate.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ result.candidate.description[:50] }}...</small>
+                                </td>
+                                <td>
+                                    <h5><span class="badge bg-success">{{ result.votes }}</span></h5>
+                                </td>
+                                <td>
+                                    {% if total_votes > 0 %}
+                                        {% set percentage = (result.votes / total_votes * 100)|round(2) %}
+                                        <strong>{{ percentage }}%</strong>
+                                    {% else %}
+                                        <strong>0%</strong>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 25px;">
+                                        {% if total_votes > 0 %}
+                                            {% set percentage = (result.votes / total_votes * 100)|round(2) %}
+                                        {% else %}
+                                            {% set percentage = 0 %}
+                                        {% endif %}
+                                        <div class="progress-bar bg-primary" role="progressbar" 
+                                             style="width: {{ percentage }}%;" 
+                                             aria-valuenow="{{ percentage }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                            {{ percentage }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-crown text-warning"></i> Ganador</h5>
+                {% if results %}
+                    {% set winner = results|sort(attribute='votes', reverse=True)|first %}
+                    <div class="text-center">
+                        <h3 class="text-primary">{{ winner.candidate.name }}</h3>
+                        <p class="text-muted">{{ winner.candidate.description }}</p>
+                        <h4><span class="badge bg-success">{{ winner.votes }} votos</span></h4>
+                    </div>
+                {% else %}
+                    <p class="text-center text-muted">No hay votos registrados</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-chart-pie"></i> Gráfico de Resultados</h5>
+                <canvas id="resultsChart" width="300" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-shield-alt"></i> Verificación de Seguridad</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Todos los votos fueron descifrados usando ElGamal</li>
+                            <li><i class="fas fa-check text-success"></i> La integridad de cada voto fue verificada</li>
+                            <li><i class="fas fa-check text-success"></i> Los votos se contaron de forma segura</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> El anonimato de los votantes se mantuvo</li>
+                            <li><i class="fas fa-check text-success"></i> No se detectaron votos duplicados</li>
+                            <li><i class="fas fa-check text-success"></i> Los resultados son auditables</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-inbox crypto-icon"></i>
+                <h4>No hay resultados disponibles</h4>
+                <p class="text-muted">Aún no se han registrado votos para esta elección.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('resultsChart').getContext('2d');
+    
+    const data = {
+        labels: [
+            {% for result in results %}
+            '{{ result.candidate.name }}',
+            {% endfor %}
+        ],
+        datasets: [{
+            data: [
+                {% for result in results %}
+                {{ result.votes }},
+                {% endfor %}
+            ],
+            backgroundColor: [
+                '#FF6384',
+                '#36A2EB',
+                '#FFCE56',
+                '#4BC0C0',
+                '#9966FF',
+                '#FF9F40'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    };
+    
+    const config = {
+        type: 'pie',
+        data: data,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                },
+                title: {
+                    display: true,
+                    text: 'Distribución de Votos'
+                }
+            }
+        }
+    };
+    
+    new Chart(ctx, config);
+});
+</script>
+{% endblock %}

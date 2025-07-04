@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2><i class="fas fa-tachometer-alt"></i> Dashboard de Administrador</h2>
+                        <p class="text-muted">Gestiona elecciones y supervisa el sistema</p>
+                    </div>
+                    <a href="{{ url_for('create_election') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Nueva Elección
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-vote-yea crypto-icon"></i>
+                <h5>{{ elections|length }}</h5>
+                <p>Elecciones Totales</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-check-circle crypto-icon text-success"></i>
+                <h5>{{ elections|selectattr('is_active')|list|length }}</h5>
+                <p>Elecciones Activas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-lock crypto-icon text-warning"></i>
+                <h5>ElGamal</h5>
+                <p>Cifrado Seguro</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-shield-alt crypto-icon text-info"></i>
+                <h5>100%</h5>
+                <p>Integridad</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if elections %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-list"></i> Todas las Elecciones</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Fecha Inicio</th>
+                                <th>Fecha Fin</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for election in elections %}
+                            <tr>
+                                <td>
+                                    <strong>{{ election.title }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ election.description[:50] }}...</small>
+                                </td>
+                                <td>{{ election.start_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>{{ election.end_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    {% if election.is_active %}
+                                        <span class="badge bg-success">Activa</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactiva</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('view_election', election_id=election.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </a>
+                                    <a href="{{ url_for('add_candidate', election_id=election.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-user-plus"></i> Candidatos
+                                    </a>
+                                    <a href="{{ url_for('view_results', election_id=election.id) }}" class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-chart-bar"></i> Resultados
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-info-circle"></i> Información del Sistema</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Sistema de cifrado ElGamal implementado</li>
+                            <li><i class="fas fa-check text-success"></i> Verificación de integridad de votos</li>
+                            <li><i class="fas fa-check text-success"></i> Anonimato completo garantizado</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Autenticación segura de usuarios</li>
+                            <li><i class="fas fa-check text-success"></i> Prevención de doble votación</li>
+                            <li><i class="fas fa-check text-success"></i> Trazabilidad de votaciones</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

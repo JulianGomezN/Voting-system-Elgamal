@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-sign-in-alt crypto-icon"></i>
+                    <h2>Iniciar Sesión</h2>
+                    <p class="text-muted">Accede a tu cuenta para participar en votaciones</p>
+                </div>
+                
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">
+                            <i class="fas fa-user"></i> Nombre de Usuario
+                        </label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            <i class="fas fa-lock"></i> Contraseña
+                        </label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                    </button>
+                </form>
+                
+                <div class="text-center mt-3">
+                    <p>¿No tienes una cuenta? <a href="{{ url_for('register') }}">Regístrate aquí</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-user-shield text-primary"></i> Cuenta de Administrador</h5>
+                <p>Si eres el primer usuario del sistema, puedes crear una cuenta de administrador.</p>
+                <a href="{{ url_for('create_admin') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-user-cog"></i> Crear Administrador
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-info-circle text-info"></i> Información</h5>
+                <p>Una vez autenticado, podrás acceder a todas las elecciones activas y votar de forma segura.</p>
+                <small class="text-muted">Todos los votos son cifrados con ElGamal</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

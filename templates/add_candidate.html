@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-user-plus crypto-icon"></i>
+                    <h2>Agregar Candidato</h2>
+                    <p class="text-muted">Agregar un nuevo candidato a: <strong>{{ election.title }}</strong></p>
+                </div>
+                
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">
+                            <i class="fas fa-user"></i> Nombre del Candidato
+                        </label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">
+                            <i class="fas fa-align-left"></i> Descripción / Propuesta
+                        </label>
+                        <textarea class="form-control" id="description" name="description" rows="4" required></textarea>
+                        <div class="form-text">
+                            Describe las propuestas y características del candidato
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Información:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Los votos para este candidato se cifrarán usando ElGamal</li>
+                            <li>El sistema mantendrá un registro seguro de todos los votos</li>
+                            <li>Solo el administrador puede ver los resultados descifrados</li>
+                        </ul>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-user-plus"></i> Agregar Candidato
+                    </button>
+                </form>
+                
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('view_election', election_id=election.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver a la Elección
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-info-circle"></i> Información de la Elección</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Título:</strong> {{ election.title }}</p>
+                        <p><strong>Descripción:</strong> {{ election.description }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Inicio:</strong> {{ election.start_date.strftime('%d/%m/%Y %H:%M') }}</p>
+                        <p><strong>Fin:</strong> {{ election.end_date.strftime('%d/%m/%Y %H:%M') }}</p>
+                        <p><strong>Estado:</strong> 
+                            {% if election.is_active %}
+                                <span class="badge bg-success">Activa</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactiva</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
