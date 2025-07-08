@@ -10,9 +10,17 @@
                         <h2><i class="fas fa-tachometer-alt"></i> Dashboard de Administrador</h2>
                         <p class="text-muted">Gestiona elecciones y supervisa el sistema</p>
                     </div>
-                    <a href="{{ url_for('create_election') }}" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Nueva Elección
-                    </a>
+                    <div>
+                        <a href="{{ url_for('update_elections_status') }}" class="btn btn-info me-2">
+                            <i class="fas fa-sync"></i> Actualizar Estados
+                        </a>
+                        <button type="button" class="btn btn-warning me-2" data-bs-toggle="modal" data-bs-target="#clearDatabaseModal">
+                            <i class="fas fa-broom"></i> Limpiar BD
+                        </button>
+                        <a href="{{ url_for('create_election') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Nueva Elección
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -24,7 +32,7 @@
         <div class="card text-center">
             <div class="card-body">
                 <i class="fas fa-vote-yea crypto-icon"></i>
-                <h5>{{ elections|length }}</h5>
+                <h5>{{ db_stats.total_elections }}</h5>
                 <p>Elecciones Totales</p>
             </div>
         </div>
@@ -33,13 +41,52 @@
         <div class="card text-center">
             <div class="card-body">
                 <i class="fas fa-check-circle crypto-icon text-success"></i>
-                <h5>{{ elections|selectattr('is_active')|list|length }}</h5>
+                <h5>{{ db_stats.active_elections }}</h5>
                 <p>Elecciones Activas</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-users crypto-icon text-info"></i>
+                <h5>{{ db_stats.total_users }}</h5>
+                <p>Usuarios Registrados</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-check-square crypto-icon text-warning"></i>
+                <h5>{{ db_stats.total_votes }}</h5>
+                <p>Votos Totales</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-md-3">
+        <div class="card text-center bg-light">
+            <div class="card-body">
+                <i class="fas fa-user-friends crypto-icon text-primary"></i>
+                <h5>{{ db_stats.total_candidates }}</h5>
+                <p>Candidatos Totales</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center bg-light">
+            <div class="card-body">
+                <i class="fas fa-user-shield crypto-icon text-success"></i>
+                <h5>{{ db_stats.admin_users }}</h5>
+                <p>Administradores</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center bg-light">
             <div class="card-body">
                 <i class="fas fa-lock crypto-icon text-warning"></i>
                 <h5>ElGamal</h5>
@@ -48,7 +95,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="card text-center bg-light">
             <div class="card-body">
                 <i class="fas fa-shield-alt crypto-icon text-info"></i>
                 <h5>100%</h5>
@@ -91,7 +138,7 @@
                                     {% if election.is_active %}
                                         <span class="badge bg-success">Activa</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">Inactiva</span>
+                                        <span class="badge bg-secondary">Cerrada</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -104,6 +151,25 @@
                                     <a href="{{ url_for('view_results', election_id=election.id) }}" class="btn btn-sm btn-outline-success">
                                         <i class="fas fa-chart-bar"></i> Resultados
                                     </a>
+                                    {% if election.is_active %}
+                                        <form method="POST" action="{{ url_for('close_election', election_id=election.id) }}" style="display: inline;">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Estás seguro de que quieres cerrar esta elección?')">
+                                                <i class="fas fa-lock"></i> Cerrar
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <form method="POST" action="{{ url_for('reopen_election', election_id=election.id) }}" style="display: inline;">
+                                            <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('¿Estás seguro de que quieres reabrir esta elección?')">
+                                                <i class="fas fa-unlock"></i> Reabrir
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                    
+                                    <form method="POST" action="{{ url_for('delete_election', election_id=election.id) }}" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de que quieres ELIMINAR esta elección?\n\nEsta acción no se puede deshacer.\n\nNOTA: Solo se pueden eliminar elecciones sin votos.')">
+                                            <i class="fas fa-trash"></i> Eliminar
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -141,4 +207,43 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de confirmación para limpiar base de datos -->
+<div class="modal fade" id="clearDatabaseModal" tabindex="-1" aria-labelledby="clearDatabaseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="clearDatabaseModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmar Limpieza de Base de Datos
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="fas fa-warning"></i> <strong>¡ADVERTENCIA!</strong>
+                </div>
+                <p>Esta acción eliminará <strong>TODOS</strong> los datos del sistema:</p>
+                <ul>
+                    <li><i class="fas fa-vote-yea text-danger"></i> Todas las elecciones</li>
+                    <li><i class="fas fa-users text-danger"></i> Todos los candidatos</li>
+                    <li><i class="fas fa-check-square text-danger"></i> Todos los votos</li>
+                    <li><i class="fas fa-user text-danger"></i> Todos los usuarios no administradores</li>
+                </ul>
+                <p class="mb-0"><strong>Esta acción NO SE PUEDE DESHACER.</strong></p>
+                <p class="text-muted">Solo se mantendrán las cuentas de administrador.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <form method="POST" action="{{ url_for('clear_database') }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-broom"></i> Sí, limpiar base de datos
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

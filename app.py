@@ -28,7 +28,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(128))
     is_admin = db.Column(db.Boolean, default=False)
     has_voted = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
 class Election(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -39,7 +39,7 @@ class Election(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     public_key = db.Column(db.Text)  # Store as JSON string
     private_key = db.Column(db.Text)  # Store as JSON string (only for admin)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
 class Candidate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -56,15 +56,52 @@ class Vote(db.Model):
     candidate_id = db.Column(db.Integer, db.ForeignKey('candidate.id'), nullable=False)
     encrypted_vote = db.Column(db.Text)  # Store encrypted vote as JSON
     vote_hash = db.Column(db.String(64))  # Hash for integrity verification
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+def check_election_status(election):
+    """Helper function to check election status and provide debug info"""
+    now = datetime.now()
+    
+    status = {
+        'is_active': election.is_active,
+        'is_started': now >= election.start_date,
+        'is_ended': now > election.end_date,
+        'current_time': now.strftime('%Y-%m-%d %H:%M:%S'),
+        'start_time': election.start_date.strftime('%Y-%m-%d %H:%M:%S'),
+        'end_time': election.end_date.strftime('%Y-%m-%d %H:%M:%S'),
+        'can_vote': election.is_active and now >= election.start_date and now <= election.end_date
+    }
+    
+    return status
+
+def update_election_status():
+    """Update election status based on current time"""
+    now = datetime.now()
+    
+    # Close elections that have ended
+    expired_elections = Election.query.filter(
+        Election.is_active == True,
+        Election.end_date < now
+    ).all()
+    
+    for election in expired_elections:
+        election.is_active = False
+        print(f"Elección '{election.title}' cerrada automáticamente - terminó el {election.end_date}")
+    
+    if expired_elections:
+        db.session.commit()
+        print(f"Se cerraron {len(expired_elections)} elecciones automáticamente")
+    
+    return len(expired_elections)
+
 # Routes
 @app.route('/')
 def index():
+    update_election_status()  # Update election status before showing
     elections = Election.query.filter_by(is_active=True).all()
     return render_template('index.html', elections=elections)
 
@@ -123,9 +160,19 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    update_election_status()  # Update election status before showing
     if current_user.is_admin:
         elections = Election.query.all()
-        return render_template('admin_dashboard.html', elections=elections)
+        # Get database statistics for admin
+        db_stats = {
+            'total_elections': Election.query.count(),
+            'active_elections': Election.query.filter_by(is_active=True).count(),
+            'total_candidates': Candidate.query.count(),
+            'total_votes': Vote.query.count(),
+            'total_users': User.query.filter_by(is_admin=False).count(),
+            'admin_users': User.query.filter_by(is_admin=True).count()
+        }
+        return render_template('admin_dashboard.html', elections=elections, db_stats=db_stats)
     else:
         active_elections = Election.query.filter_by(is_active=True).all()
         return render_template('user_dashboard.html', elections=active_elections)
@@ -174,6 +221,7 @@ def create_election():
 @app.route('/election/<int:election_id>')
 @login_required
 def view_election(election_id):
+    update_election_status()  # Update election status before showing
     election = Election.query.get_or_404(election_id)
     candidates = Candidate.query.filter_by(election_id=election_id).all()
     
@@ -188,6 +236,8 @@ def vote():
     election_id = request.form['election_id']
     candidate_id = request.form['candidate_id']
     
+    update_election_status()  # Update election status before processing vote
+    
     election = Election.query.get_or_404(election_id)
     candidate = Candidate.query.get_or_404(candidate_id)
     
@@ -198,9 +248,17 @@ def vote():
         return redirect(url_for('view_election', election_id=election_id))
     
     # Check if election is active and within time bounds
-    now = datetime.utcnow()
-    if not election.is_active or now < election.start_date or now > election.end_date:
-        flash('La elección no está activa')
+    now = datetime.now()
+    if not election.is_active:
+        flash('La elección está cerrada')
+        return redirect(url_for('view_election', election_id=election_id))
+    
+    if now < election.start_date:
+        flash(f'La elección aún no ha comenzado. Inicia el {election.start_date.strftime("%Y-%m-%d %H:%M:%S")}')
+        return redirect(url_for('view_election', election_id=election_id))
+    
+    if now > election.end_date:
+        flash(f'La elección ha terminado. Terminó el {election.end_date.strftime("%Y-%m-%d %H:%M:%S")}')
         return redirect(url_for('view_election', election_id=election_id))
     
     # Encrypt the vote using ElGamal
@@ -293,6 +351,55 @@ def view_results(election_id):
     
     return render_template('results.html', election=election, results=results)
 
+@app.route('/admin/close_election/<int:election_id>', methods=['POST'])
+@login_required
+def close_election(election_id):
+    if not current_user.is_admin:
+        flash('Solo los administradores pueden cerrar elecciones')
+        return redirect(url_for('dashboard'))
+    
+    election = Election.query.get_or_404(election_id)
+    election.is_active = False
+    db.session.commit()
+    
+    flash(f'Elección "{election.title}" cerrada exitosamente')
+    return redirect(url_for('dashboard'))
+
+@app.route('/admin/reopen_election/<int:election_id>', methods=['POST'])
+@login_required
+def reopen_election(election_id):
+    if not current_user.is_admin:
+        flash('Solo los administradores pueden reabrir elecciones')
+        return redirect(url_for('dashboard'))
+    
+    election = Election.query.get_or_404(election_id)
+    now = datetime.now()
+    
+    # Solo permitir reabrir si no ha pasado la fecha de fin
+    if now <= election.end_date:
+        election.is_active = True
+        db.session.commit()
+        flash(f'Elección "{election.title}" reabierta exitosamente')
+    else:
+        flash('No se puede reabrir una elección cuya fecha de fin ya pasó')
+    
+    return redirect(url_for('dashboard'))
+
+@app.route('/admin/update_elections_status')
+@login_required
+def update_elections_status():
+    if not current_user.is_admin:
+        flash('Solo los administradores pueden actualizar el estado de las elecciones')
+        return redirect(url_for('dashboard'))
+    
+    closed_count = update_election_status()
+    if closed_count > 0:
+        flash(f'Se cerraron {closed_count} elecciones automáticamente')
+    else:
+        flash('No hay elecciones que cerrar')
+    
+    return redirect(url_for('dashboard'))
+
 @app.route('/admin/create_admin', methods=['GET', 'POST'])
 def create_admin():
     # Check if any admin exists
@@ -319,6 +426,79 @@ def create_admin():
         return redirect(url_for('login'))
     
     return render_template('create_admin.html')
+
+@app.route('/admin/delete_election/<int:election_id>', methods=['POST'])
+@login_required
+def delete_election(election_id):
+    if not current_user.is_admin:
+        flash('Solo los administradores pueden eliminar elecciones')
+        return redirect(url_for('dashboard'))
+    
+    election = Election.query.get_or_404(election_id)
+    election_title = election.title
+    
+    # Check if election has votes
+    vote_count = Vote.query.filter_by(election_id=election_id).count()
+    
+    if vote_count > 0:
+        flash(f'No se puede eliminar la elección "{election_title}" porque ya tiene {vote_count} votos registrados')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        # Delete all candidates (no votes to delete since we checked above)
+        Candidate.query.filter_by(election_id=election_id).delete()
+        
+        # Delete the election
+        db.session.delete(election)
+        db.session.commit()
+        
+        flash(f'Elección "{election_title}" eliminada exitosamente')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar la elección: {str(e)}')
+    
+    return redirect(url_for('dashboard'))
+
+@app.route('/admin/clear_database', methods=['POST'])
+@login_required
+def clear_database():
+    if not current_user.is_admin:
+        flash('Solo los administradores pueden limpiar la base de datos')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        # Get counts before deletion for the message
+        vote_count = Vote.query.count()
+        candidate_count = Candidate.query.count()
+        election_count = Election.query.count()
+        user_count = User.query.filter_by(is_admin=False).count()  # Don't count admin users
+        
+        # Delete all votes
+        Vote.query.delete()
+        
+        # Delete all candidates
+        Candidate.query.delete()
+        
+        # Delete all elections
+        Election.query.delete()
+        
+        # Delete all non-admin users
+        User.query.filter_by(is_admin=False).delete()
+        
+        # Reset has_voted flag for admin users (in case they voted during testing)
+        admin_users = User.query.filter_by(is_admin=True).all()
+        for admin in admin_users:
+            admin.has_voted = False
+        
+        db.session.commit()
+        
+        flash(f'Base de datos limpiada exitosamente. Se eliminaron: {election_count} elecciones, {candidate_count} candidatos, {vote_count} votos y {user_count} usuarios no administradores.')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al limpiar la base de datos: {str(e)}')
+    
+    return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     with app.app_context():
