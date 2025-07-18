@@ -6,11 +6,13 @@ from datetime import datetime, timedelta
 import json
 import os
 from elgamal_crypto import ElGamalCrypto
+from config import config
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///voting_system.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Configurar la aplicación
+config_name = os.environ.get('FLASK_ENV', 'development')
+app.config.from_object(config[config_name])
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -51,12 +53,20 @@ class Candidate(db.Model):
 
 class Vote(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    election_id = db.Column(db.Integer, db.ForeignKey('election.id'), nullable=False)
+    encrypted_vote = db.Column(db.Text, nullable=False)  # Solo el voto encriptado
+    vote_hash = db.Column(db.String(64), unique=True, nullable=False)  # Hash único para verificación
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+    # ❌ NO almacenar user_id ni candidate_id por seguridad
+
+class VotingRecord(db.Model):
+    """Tabla separada solo para registrar quién ya votó (sin vincular al voto específico)"""
+    id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     election_id = db.Column(db.Integer, db.ForeignKey('election.id'), nullable=False)
-    candidate_id = db.Column(db.Integer, db.ForeignKey('candidate.id'), nullable=False)
-    encrypted_vote = db.Column(db.Text)  # Store encrypted vote as JSON
-    vote_hash = db.Column(db.String(64))  # Hash for integrity verification
-    timestamp = db.Column(db.DateTime, default=datetime.now)
+    voted_at = db.Column(db.DateTime, default=datetime.now)
+    # Constraint para evitar votos duplicados
+    __table_args__ = (db.UniqueConstraint('user_id', 'election_id', name='one_vote_per_user_per_election'),)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -169,6 +179,7 @@ def dashboard():
             'active_elections': Election.query.filter_by(is_active=True).count(),
             'total_candidates': Candidate.query.count(),
             'total_votes': Vote.query.count(),
+            'total_voting_records': VotingRecord.query.count(),
             'total_users': User.query.filter_by(is_admin=False).count(),
             'admin_users': User.query.filter_by(is_admin=True).count()
         }
@@ -226,7 +237,7 @@ def view_election(election_id):
     candidates = Candidate.query.filter_by(election_id=election_id).all()
     
     # Check if user has already voted
-    user_vote = Vote.query.filter_by(user_id=current_user.id, election_id=election_id).first()
+    user_vote = VotingRecord.query.filter_by(user_id=current_user.id, election_id=election_id).first()
     
     return render_template('election.html', election=election, candidates=candidates, user_vote=user_vote)
 
@@ -242,7 +253,7 @@ def vote():
     candidate = Candidate.query.get_or_404(candidate_id)
     
     # Check if user has already voted
-    existing_vote = Vote.query.filter_by(user_id=current_user.id, election_id=election_id).first()
+    existing_vote = VotingRecord.query.filter_by(user_id=current_user.id, election_id=election_id).first()
     if existing_vote:
         flash('Ya has votado en esta elección')
         return redirect(url_for('view_election', election_id=election_id))
@@ -261,28 +272,37 @@ def vote():
         flash(f'La elección ha terminado. Terminó el {election.end_date.strftime("%Y-%m-%d %H:%M:%S")}')
         return redirect(url_for('view_election', election_id=election_id))
     
-    # Encrypt the vote using ElGamal
+    # Encrypt the vote using ElGamal - Include candidate_id in encrypted data
     public_key_data = json.loads(election.public_key)
-    encrypted_vote = crypto.encrypt_vote(1, public_key_data)  # 1 represents a vote for this candidate
-    
-    # Create vote hash for integrity
     vote_data = {
-        'user_id': current_user.id,
+        'candidate_id': int(candidate_id),
+        'value': 1,  # 1 vote for this candidate
+        'election_id': int(election_id)
+    }
+    encrypted_vote = crypto.encrypt_vote(vote_data, public_key_data)
+    
+    # Create vote hash for integrity (without revealing voter identity)
+    hash_data = {
+        'encrypted_vote': encrypted_vote,
         'election_id': election_id,
-        'candidate_id': candidate_id,
         'timestamp': now.isoformat()
     }
-    vote_hash = crypto.hash_vote(vote_data)
+    vote_hash = crypto.hash_vote(hash_data)
     
-    # Store the encrypted vote
+    # Store the encrypted vote (anonymously)
     vote = Vote(
-        user_id=current_user.id,
         election_id=election_id,
-        candidate_id=candidate_id,
         encrypted_vote=json.dumps(encrypted_vote),
         vote_hash=vote_hash
     )
     db.session.add(vote)
+    
+    # Record that user voted (without linking to specific vote)
+    voting_record = VotingRecord(
+        user_id=current_user.id,
+        election_id=election_id
+    )
+    db.session.add(voting_record)
     
     # Update user's voting status
     current_user.has_voted = True
@@ -330,26 +350,40 @@ def view_results(election_id):
     
     # Decrypt votes and count them
     private_key_data = json.loads(election.private_key)
-    results = []
+    results = {candidate.id: 0 for candidate in candidates}
     
-    for candidate in candidates:
-        votes = Vote.query.filter_by(candidate_id=candidate.id).all()
-        total_votes = 0
-        
-        for vote in votes:
+    # Get all votes for this election
+    votes = Vote.query.filter_by(election_id=election_id).all()
+    
+    for vote in votes:
+        try:
             encrypted_vote = json.loads(vote.encrypted_vote)
-            try:
-                decrypted_vote = crypto.decrypt_vote(encrypted_vote, private_key_data)
-                total_votes += decrypted_vote
-            except Exception as e:
-                print(f"Error decrypting vote: {e}")
-        
-        results.append({
+            decrypted_data = crypto.decrypt_vote(encrypted_vote, private_key_data)
+            
+            # Extract candidate_id from decrypted data
+            if isinstance(decrypted_data, dict):
+                candidate_id = decrypted_data.get('candidate_id')
+                vote_value = decrypted_data.get('value', 1)
+            else:
+                # Backward compatibility
+                candidate_id = decrypted_data
+                vote_value = 1
+            
+            if candidate_id in results:
+                results[candidate_id] += vote_value
+                
+        except Exception as e:
+            print(f"Error decrypting vote: {e}")
+    
+    # Prepare results for template
+    final_results = []
+    for candidate in candidates:
+        final_results.append({
             'candidate': candidate,
-            'votes': total_votes
+            'votes': results[candidate.id]
         })
     
-    return render_template('results.html', election=election, results=results)
+    return render_template('results.html', election=election, results=final_results)
 
 @app.route('/admin/close_election/<int:election_id>', methods=['POST'])
 @login_required
@@ -439,13 +473,20 @@ def delete_election(election_id):
     
     # Check if election has votes
     vote_count = Vote.query.filter_by(election_id=election_id).count()
+    voting_record_count = VotingRecord.query.filter_by(election_id=election_id).count()
     
-    if vote_count > 0:
+    if vote_count > 0 or voting_record_count > 0:
         flash(f'No se puede eliminar la elección "{election_title}" porque ya tiene {vote_count} votos registrados')
         return redirect(url_for('dashboard'))
     
     try:
-        # Delete all candidates (no votes to delete since we checked above)
+        # Delete all voting records first
+        VotingRecord.query.filter_by(election_id=election_id).delete()
+        
+        # Delete all votes for this election
+        Vote.query.filter_by(election_id=election_id).delete()
+        
+        # Delete all candidates (after votes are deleted)
         Candidate.query.filter_by(election_id=election_id).delete()
         
         # Delete the election
@@ -469,9 +510,13 @@ def clear_database():
     try:
         # Get counts before deletion for the message
         vote_count = Vote.query.count()
+        voting_record_count = VotingRecord.query.count()
         candidate_count = Candidate.query.count()
         election_count = Election.query.count()
         user_count = User.query.filter_by(is_admin=False).count()  # Don't count admin users
+        
+        # Delete all voting records
+        VotingRecord.query.delete()
         
         # Delete all votes
         Vote.query.delete()
@@ -492,7 +537,7 @@ def clear_database():
         
         db.session.commit()
         
-        flash(f'Base de datos limpiada exitosamente. Se eliminaron: {election_count} elecciones, {candidate_count} candidatos, {vote_count} votos y {user_count} usuarios no administradores.')
+        flash(f'Base de datos limpiada exitosamente. Se eliminaron: {election_count} elecciones, {candidate_count} candidatos, {vote_count} votos, {voting_record_count} registros de votación y {user_count} usuarios no administradores.')
         
     except Exception as e:
         db.session.rollback()
