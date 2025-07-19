@@ -450,9 +450,11 @@ def create_admin():
         return redirect(url_for('login'))
     
     if request.method == 'POST':
+        print("Creating admin user...")
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
+        print(f"Received admin creation request for {username} with email {email}")
         
         admin = User(
             username=username,
