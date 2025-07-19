@@ -30,19 +30,23 @@ class Config:
 class DevelopmentConfig(Config):
     """Configuración para desarrollo"""
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
+    # Usar la conexión remota incluso en desarrollo
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        os.environ.get('DEV_DATABASE_URL') or \
         'postgresql://postgres:admin@localhost:5432/elgamal_db'
 
 class ProductionConfig(Config):
     """Configuración para producción"""
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'postgresql://postgres:admin@localhost:5432/elgamal_db'
+    # Asegurarse de que se use la conexión de Supabase
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
 
 class TestingConfig(Config):
     """Configuración para pruebas"""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:admin@localhost:5432/elgamal_db'
+    # Para pruebas, también usamos la base remota
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'postgresql://postgres:admin@localhost:5432/elgamal_db'
 
 # Diccionario de configuraciones
 config = {

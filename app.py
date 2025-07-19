@@ -11,8 +11,13 @@ from config import config
 app = Flask(__name__)
 
 # Configurar la aplicación
-config_name = os.environ.get('FLASK_ENV', 'development')
+config_name = os.environ.get('FLASK_ENV', 'production')  # Por defecto usar producción para conectar a Supabase
 app.config.from_object(config[config_name])
+
+# Asegurar que la conexión de base de datos esté configurada
+if not app.config['SQLALCHEMY_DATABASE_URI']:
+    # Forzar el uso de la URL de la base de datos
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
