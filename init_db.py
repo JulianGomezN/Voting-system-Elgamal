@@ -17,6 +17,7 @@ except ImportError:
 # Configuración para usar exclusivamente la conexión remota a Postgres (Supabase)
 DB_CONNECTION_STRING = os.environ.get('DATABASE_URL')
 
+
 # Estas variables ya no se usarán, pero se mantienen para compatibilidad con código existente
 DB_HOST = None
 DB_PORT = None

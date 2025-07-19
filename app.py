@@ -12,6 +12,8 @@ app = Flask(__name__)
 
 # Configurar la aplicación
 config_name = os.environ.get('FLASK_ENV', 'production')  # Por defecto usar producción para conectar a Supabase
+PORT = int(os.environ.get('PORT', 5000))  # Puerto por defecto si no se 
+print(f"🔧 Usando puerto: {PORT}")
 app.config.from_object(config[config_name])
 
 # Asegurar que la conexión de base de datos esté configurada
@@ -553,4 +555,4 @@ def clear_database():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    app.run(debug=True,port=PORT)
