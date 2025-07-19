@@ -1,178 +1,237 @@
-{% extends "base.html" %}
-
-{% block content %}
+{% extends "base.html" %} {% block content %}
 <div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h2><i class="fas fa-vote-yea"></i> {{ election.title }}</h2>
-                        <p class="text-muted">{{ election.description }}</p>
-                    </div>
-                    {% if current_user.is_admin %}
-                    <a href="{{ url_for('add_candidate', election_id=election.id) }}" class="btn btn-outline-primary">
-                        <i class="fas fa-user-plus"></i> Agregar Candidato
-                    </a>
-                    {% endif %}
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><i class="fas fa-calendar-start"></i> <strong>Inicio:</strong> {{ election.start_date.strftime('%d/%m/%Y %H:%M') }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><i class="fas fa-calendar-times"></i> <strong>Fin:</strong> {{ election.end_date.strftime('%d/%m/%Y %H:%M') }}</p>
-                    </div>
-                </div>
-                
-                {% if election.is_active %}
-                    <div class="alert alert-success">
-                        <i class="fas fa-check-circle"></i> Esta elección está activa y acepta votos
-                    </div>
-                {% else %}
-                    <div class="alert alert-warning">
-                        <i class="fas fa-pause-circle"></i> Esta elección no está activa
-                    </div>
-                {% endif %}
-            </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2><i class="fas fa-vote-yea"></i> {{ election.title }}</h2>
+            <p class="text-muted">{{ election.description }}</p>
+          </div>
+          {% if current_user.is_admin %}
+          <a
+            href="{{ url_for('add_candidate', election_id=election.id) }}"
+            class="btn btn-outline-primary">
+            <i class="fas fa-user-plus"></i> Agregar Candidato
+          </a>
+          {% endif %}
         </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <p>
+              <i class="fas fa-calendar-start"></i> <strong>Inicio:</strong> {{
+              election.start_date.strftime('%d/%m/%Y %H:%M') }}
+            </p>
+          </div>
+          <div class="col-md-6">
+            <p>
+              <i class="fas fa-calendar-times"></i> <strong>Fin:</strong> {{
+              election.end_date.strftime('%d/%m/%Y %H:%M') }}
+            </p>
+          </div>
+        </div>
+
+        {% if election.is_active %}
+        <div class="alert alert-success">
+          <i class="fas fa-check-circle"></i> Esta elección está activa y acepta
+          votos
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+          <i class="fas fa-pause-circle"></i> Esta elección no está activa
+        </div>
+        {% endif %}
+      </div>
     </div>
+  </div>
 </div>
 
 {% if user_vote %}
 <div class="row mt-4">
-    <div class="col-12">
-        <div class="alert alert-info">
-            <i class="fas fa-check-circle"></i> <strong>Ya has votado en esta elección.</strong>
-            Tu voto ha sido registrado de forma segura y cifrada.
-        </div>
+  <div class="col-12">
+    <div class="alert alert-info">
+      <i class="fas fa-check-circle"></i>
+      <strong>Ya has votado en esta elección.</strong>
+      Tu voto ha sido registrado de forma segura y cifrada.
     </div>
+  </div>
 </div>
-{% endif %}
-
-{% if candidates %}
+{% endif %} {% if candidates %}
 <div class="row mt-4">
-    <div class="col-12">
-        <h4><i class="fas fa-users"></i> Candidatos</h4>
-    </div>
-    {% for candidate in candidates %}
-    <div class="col-md-6 mb-4">
-        <div class="card candidate-card">
-            <div class="card-body">
-                <h5 class="card-title">{{ candidate.name }}</h5>
-                <p class="card-text">{{ candidate.description }}</p>
-                
-                {% if not user_vote and election.is_active and not current_user.is_admin %}
-                <form method="POST" action="{{ url_for('vote') }}" class="vote-form">
-                    <input type="hidden" name="election_id" value="{{ election.id }}">
-                    <input type="hidden" name="candidate_id" value="{{ candidate.id }}">
-                    <button type="submit" class="btn btn-primary w-100" onclick="return confirmVote('{{ candidate.name }}')">
-                        <i class="fas fa-vote-yea"></i> Votar por {{ candidate.name }}
-                    </button>
-                </form>
-                {% endif %}
-                
-                {% if current_user.is_admin %}
-                <div class="mt-2">
-                    <small class="text-muted">
-                        <i class="fas fa-chart-bar"></i> Votos registrados: {{ candidate.vote_count }}
-                    </small>
-                </div>
-                {% endif %}
-            </div>
+  <div class="col-12">
+    <h4><i class="fas fa-users"></i> Candidatos</h4>
+  </div>
+  {% for candidate in candidates %}
+  <div class="col-md-6 mb-4">
+    <div class="card candidate-card">
+      <div class="card-body">
+        <h5 class="card-title">{{ candidate.name }}</h5>
+        <p class="card-text">{{ candidate.description }}</p>
+
+        {% if not user_vote and election.is_active and not current_user.is_admin
+        %}
+        <form method="POST" action="{{ url_for('vote') }}" class="vote-form">
+          <input type="hidden" name="election_id" value="{{ election.id }}" />
+          <input type="hidden" name="candidate_id" value="{{ candidate.id }}" />
+          <button
+            type="submit"
+            class="btn btn-primary w-100"
+            onclick="return confirmVote('{{ candidate.name }}')">
+            <i class="fas fa-vote-yea"></i> Votar por {{ candidate.name }}
+          </button>
+        </form>
+        {% endif %} {% if current_user.is_admin %}
+        <div class="mt-2">
+          <small class="text-muted">
+            <i class="fas fa-chart-bar"></i> Votos registrados: {{
+            candidate.vote_count }}
+          </small>
         </div>
+        {% endif %}
+      </div>
     </div>
-    {% endfor %}
+  </div>
+  {% endfor %}
 </div>
 {% else %}
 <div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-user-plus crypto-icon"></i>
-                <h4>No hay candidatos registrados</h4>
-                <p class="text-muted">Aún no se han registrado candidatos para esta elección.</p>
-                {% if current_user.is_admin %}
-                <a href="{{ url_for('add_candidate', election_id=election.id) }}" class="btn btn-primary">
-                    <i class="fas fa-user-plus"></i> Agregar Primer Candidato
-                </a>
-                {% endif %}
-            </div>
-        </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body text-center">
+        <i class="fas fa-user-plus crypto-icon"></i>
+        <h4>No hay candidatos registrados</h4>
+        <p class="text-muted">
+          Aún no se han registrado candidatos para esta elección.
+        </p>
+        {% if current_user.is_admin %}
+        <a
+          href="{{ url_for('add_candidate', election_id=election.id) }}"
+          class="btn btn-primary">
+          <i class="fas fa-user-plus"></i> Agregar Primer Candidato
+        </a>
+        {% endif %}
+      </div>
     </div>
+  </div>
+</div>
+{% endif %} {% if current_user.is_admin %}
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h5><i class="fas fa-tools"></i> Herramientas de Administración</h5>
+        <p class="text-muted">
+          El conteo de votos se actualiza automáticamente cuando los usuarios
+          votan, pero también puedes forzar una actualización desde los votos
+          cifrados:
+        </p>
+        <form
+          method="POST"
+          action="{{ url_for('update_vote_counts', election_id=election.id) }}"
+          class="mt-2">
+          <button type="submit" class="btn btn-secondary">
+            <i class="fas fa-sync"></i> Actualizar contadores de votos
+          </button>
+          <a
+            href="{{ url_for('view_results', election_id=election.id) }}"
+            class="btn btn-info ml-2">
+            <i class="fas fa-chart-bar"></i> Ver resultados detallados
+          </a>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
 {% endif %}
 
 <div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h5><i class="fas fa-shield-alt"></i> Garantías de Seguridad</h5>
-                <div class="row">
-                    <div class="col-md-6">
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Cifrado ElGamal aplicado a cada voto</li>
-                            <li><i class="fas fa-check text-success"></i> Verificación de integridad con hash SHA-256</li>
-                            <li><i class="fas fa-check text-success"></i> Anonimato completo del votante</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <ul class="list-unstyled">
-                            <li><i class="fas fa-check text-success"></i> Prevención de doble votación</li>
-                            <li><i class="fas fa-check text-success"></i> Registro temporal de cada voto</li>
-                            <li><i class="fas fa-check text-success"></i> Descifrado seguro por administrador</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h5><i class="fas fa-shield-alt"></i> Garantías de Seguridad</h5>
+        <div class="row">
+          <div class="col-md-6">
+            <ul class="list-unstyled">
+              <li>
+                <i class="fas fa-check text-success"></i> Cifrado ElGamal
+                aplicado a cada voto
+              </li>
+              <li>
+                <i class="fas fa-check text-success"></i> Verificación de
+                integridad con hash SHA-256
+              </li>
+              <li>
+                <i class="fas fa-check text-success"></i> Anonimato completo del
+                votante
+              </li>
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <ul class="list-unstyled">
+              <li>
+                <i class="fas fa-check text-success"></i> Prevención de doble
+                votación
+              </li>
+              <li>
+                <i class="fas fa-check text-success"></i> Registro temporal de
+                cada voto
+              </li>
+              <li>
+                <i class="fas fa-check text-success"></i> Descifrado seguro por
+                administrador
+              </li>
+            </ul>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script>
-function confirmVote(candidateName) {
-    return confirm(`¿Estás seguro de que quieres votar por ${candidateName}?\n\nEsta acción no se puede deshacer y tu voto será cifrado de forma segura.`);
-}
+  function confirmVote(candidateName) {
+    return confirm(
+      `¿Estás seguro de que quieres votar por ${candidateName}?\n\nEsta acción no se puede deshacer y tu voto será cifrado de forma segura.`
+    );
+  }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const cards = document.querySelectorAll('.candidate-card');
-    cards.forEach(card => {
-        card.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-5px)';
-            this.style.boxShadow = '0 15px 35px rgba(0,0,0,0.1)';
-        });
-        
-        card.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0)';
-            this.style.boxShadow = '0 10px 30px rgba(0,0,0,0.1)';
-        });
+  document.addEventListener("DOMContentLoaded", function () {
+    const cards = document.querySelectorAll(".candidate-card");
+    cards.forEach((card) => {
+      card.addEventListener("mouseenter", function () {
+        this.style.transform = "translateY(-5px)";
+        this.style.boxShadow = "0 15px 35px rgba(0,0,0,0.1)";
+      });
+
+      card.addEventListener("mouseleave", function () {
+        this.style.transform = "translateY(0)";
+        this.style.boxShadow = "0 10px 30px rgba(0,0,0,0.1)";
+      });
     });
-});
+  });
 </script>
 
 <style>
-.candidate-card {
+  .candidate-card {
     transition: all 0.3s ease;
     border: none;
     border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-}
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  }
 
-.vote-form button {
+  .vote-form button {
     background: linear-gradient(45deg, #28a745, #20c997);
     border: none;
     border-radius: 50px;
     padding: 10px 20px;
     font-weight: 600;
     transition: all 0.3s ease;
-}
+  }
 
-.vote-form button:hover {
+  .vote-form button:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
-}
+  }
 </style>
 {% endblock %}

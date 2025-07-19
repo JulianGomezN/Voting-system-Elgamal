@@ -82,12 +82,46 @@ class ElGamalCrypto:
         return message
     
     def encrypt_vote(self, vote_option, public_key_data):
-        """Encrypt a vote option (0 or 1)"""
-        return self.encrypt(vote_option, public_key_data)
+        """Encrypt a vote option
+        
+        Can accept:
+        - Simple integer or string values
+        - Dictionary with vote data (will be converted to JSON string)
+        """
+        if isinstance(vote_option, dict):
+            # Convert dict to string for encryption
+            import json
+            vote_str = json.dumps(vote_option)
+            return self.encrypt(vote_str, public_key_data)
+        else:
+            # Direct encryption for integers and strings
+            return self.encrypt(vote_option, public_key_data)
     
     def decrypt_vote(self, encrypted_vote, private_key_data):
-        """Decrypt a vote"""
-        return self.decrypt(encrypted_vote, private_key_data)
+        """Decrypt a vote
+        
+        Returns:
+        - Dictionary if the original vote was a dictionary (can be parsed as JSON)
+        - Original integer or string value otherwise
+        """
+        decrypted_result = self.decrypt(encrypted_vote, private_key_data)
+        
+        # Try to convert back to bytes and then decode as JSON if possible
+        try:
+            byte_length = (decrypted_result.bit_length() + 7) // 8
+            decrypted_bytes = decrypted_result.to_bytes(byte_length, 'big')
+            decoded_str = decrypted_bytes.decode('utf-8')
+            
+            # Check if it's valid JSON (dictionary)
+            import json
+            try:
+                return json.loads(decoded_str)
+            except json.JSONDecodeError:
+                # Not JSON, just return the decoded string
+                return decoded_str
+        except:
+            # If any error occurs, return the original integer
+            return decrypted_result
     
     def homomorphic_add(self, ciphertext1, ciphertext2, p):
         """Add two ciphertexts homomorphically"""

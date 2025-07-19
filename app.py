@@ -311,6 +311,9 @@ def vote():
     )
     db.session.add(voting_record)
     
+    # Actualizar contador de votos del candidato 
+    candidate.vote_count += 1
+    
     # Update user's voting status
     current_user.has_voted = True
     db.session.commit()
@@ -441,6 +444,51 @@ def update_elections_status():
     
     return redirect(url_for('dashboard'))
 
+@app.route('/admin/update_vote_counts/<int:election_id>', methods=['POST'])
+@login_required
+def update_vote_counts(election_id):
+    if not current_user.is_admin:
+        flash('Solo los administradores pueden actualizar contadores de votos')
+        return redirect(url_for('dashboard'))
+    
+    election = Election.query.get_or_404(election_id)
+    candidates = Candidate.query.filter_by(election_id=election_id).all()
+    
+    # Decrypt votes and count them
+    private_key_data = json.loads(election.private_key)
+    results = {candidate.id: 0 for candidate in candidates}
+    
+    # Get all votes for this election
+    votes = Vote.query.filter_by(election_id=election_id).all()
+    
+    for vote in votes:
+        try:
+            encrypted_vote = json.loads(vote.encrypted_vote)
+            decrypted_data = crypto.decrypt_vote(encrypted_vote, private_key_data)
+            
+            # Extract candidate_id from decrypted data
+            if isinstance(decrypted_data, dict):
+                candidate_id = decrypted_data.get('candidate_id')
+                vote_value = decrypted_data.get('value', 1)
+            else:
+                # Backward compatibility
+                candidate_id = decrypted_data
+                vote_value = 1
+            
+            if candidate_id in results:
+                results[candidate_id] += vote_value
+                
+        except Exception as e:
+            print(f"Error decrypting vote: {e}")
+    
+    # Update vote counts for each candidate
+    for candidate in candidates:
+        candidate.vote_count = results[candidate.id]
+    
+    db.session.commit()
+    flash('Contadores de votos actualizados correctamente')
+    return redirect(url_for('view_election', election_id=election_id))
+
 @app.route('/admin/create_admin', methods=['GET', 'POST'])
 def create_admin():
     # Check if any admin exists
@@ -450,9 +498,11 @@ def create_admin():
         return redirect(url_for('login'))
     
     if request.method == 'POST':
+        print("Creating admin user...")
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
+        print(f"Received admin creation request for {username} with email {email}")
         
         admin = User(
             username=username,
