@@ -14,52 +14,76 @@ try:
 except ImportError:
     print("⚠️ python-dotenv no está disponible")
 
-# Obtener configuración de base de datos desde variables de entorno
-DB_HOST = os.environ.get('DB_HOST')
-DB_PORT = os.environ.get('DB_PORT')
-DB_USER = os.environ.get('DB_USER')
-DB_PASSWORD = os.environ.get('DB_PASSWORD')
-DB_NAME = os.environ.get('DB_NAME')
+# Configuración para usar exclusivamente la conexión remota a Postgres (Supabase)
+DB_CONNECTION_STRING = os.environ.get('DATABASE_URL')
+
+# Estas variables ya no se usarán, pero se mantienen para compatibilidad con código existente
+DB_HOST = None
+DB_PORT = None
+DB_USER = None
+DB_PASSWORD = None
+DB_NAME = "postgres"  # Nombre de la base de datos en Supabase
 
 def validate_environment():
     """Validar que todas las variables de entorno necesarias estén configuradas"""
-    if not DB_PASSWORD:
-        print("❌ Error: DB_PASSWORD no está configurada en el archivo .env")
-        print("💡 Agrega la línea: DB_PASSWORD=tu_password_real")
+    # Verificar si tenemos la cadena de conexión para Supabase
+    if DB_CONNECTION_STRING:
+        print("✅ Cadena de conexión para Supabase detectada")
+        # Mostramos los primeros caracteres para verificar sin exponer credenciales
+        masked_connection = DB_CONNECTION_STRING[:20] + "..." if len(DB_CONNECTION_STRING) > 20 else "..."
+        print(f"   - Conexión: {masked_connection}")
+        return True
+    else:
+        print("❌ Error: DATABASE_URL no está configurada en el archivo .env")
+        print("💡 Agrega la línea: DATABASE_URL=postgresql://usuario:contraseña@host:puerto/basededatos")
         return False
-    
-    print("✅ Variables de entorno cargadas correctamente")
-    print(f"   - Host: {DB_HOST}")
-    print(f"   - Puerto: {DB_PORT}")
-    print(f"   - Usuario: {DB_USER}")
-    print(f"   - Base de datos: {DB_NAME}")
-    print(f"   - Contraseña: {'*' * len(DB_PASSWORD)}")
-    return True
 
 def test_postgresql_connection():
     """Verificar si PostgreSQL está disponible usando variables de entorno"""
+    print(f"string de conexión: {DB_CONNECTION_STRING if DB_CONNECTION_STRING else 'No disponible'}")
     try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
+        if DB_CONNECTION_STRING:
+            # Usar la cadena de conexión completa (como la de Supabase)
+            print("ℹ️  Usando cadena de conexión completa")
+            conn = psycopg2.connect(DB_CONNECTION_STRING)
+            print("✅ Conexión a PostgreSQL (mediante URL) exitosa")
+        else:
+            # Usar parámetros individuales
+            print("ℹ️  Usando conexión tradicional con parámetros individuales")
+            conn = psycopg2.connect(
+                host=DB_HOST,
+                port=DB_PORT,
+                user=DB_USER,
+                password=DB_PASSWORD
+            )
+            print("✅ Conexión a PostgreSQL exitosa")
+        
         conn.close()
-        print("✅ Conexión a PostgreSQL exitosa")
         return True
     except Exception as e:
         print(f"❌ PostgreSQL no está disponible: {e}")
         print("\n💡 Verifica que:")
-        print("   - PostgreSQL esté instalado y ejecutándose")
-        print("   - Las credenciales en .env sean correctas")
-        print("   - El puerto esté disponible")
+        if DB_CONNECTION_STRING:
+            print("   - La URL de conexión (DATABASE_URL) sea correcta")
+            print("   - La base de datos remota esté disponible")
+        else:
+            print("   - PostgreSQL esté instalado y ejecutándose")
+            print("   - Las credenciales en .env sean correctas")
+            print("   - El puerto esté disponible")
         return False
 
 def create_database_if_not_exists():
     """Crear la base de datos si no existe usando variables de entorno"""
     try:
         # Conectar a PostgreSQL (base de datos por defecto)
+        if DB_CONNECTION_STRING:
+            # En caso de usar Supabase u otro servicio gestionado, generalmente
+            # no es necesario crear la base de datos ya que viene pre-configurada
+            print("ℹ️  Usando base de datos gestionada mediante URL de conexión")
+            # La base de datos ya debería existir en el servicio gestionado
+            return True
+            
+        # Conexión tradicional para entornos locales
         conn = psycopg2.connect(
             host=DB_HOST,
             port=DB_PORT,
@@ -94,7 +118,12 @@ def init_app_tables():
         # Importar la aplicación después de crear las bases de datos
         from app import app, db
         
+        # Mostrar la configuración de la base de datos
+        print(f"🔍 URI de la base de datos: {app.config['SQLALCHEMY_DATABASE_URI'][:20]}...")
+        print(f"🔍 Modo de Flask: {app.config['ENV']}")
+        
         with app.app_context():
+            print("🔄 Inicializando tablas de la aplicación...")
             # Verificar conexión
             with db.engine.connect() as conn:
                 conn.execute(db.text('SELECT 1'))
@@ -117,10 +146,20 @@ def init_app_tables():
         
     except Exception as e:
         print(f"❌ Error al crear las tablas: {e}")
-        print("💡 Verifica que:")
+        
+        # Información adicional de depuración
+        try:
+            from app import app
+            print(f"🔍 Modo de Flask: {app.config.get('ENV', 'No configurado')}")
+            print(f"� URI de la base de datos: {app.config.get('SQLALCHEMY_DATABASE_URI', 'No configurada')[:20]}...")
+            print(f"🔍 Variable de entorno DATABASE_URL: {os.environ.get('DATABASE_URL', 'No configurada')[:20]}...")
+        except Exception as debug_error:
+            print(f"🔍 Error al obtener información de depuración: {debug_error}")
+            
+        print("�💡 Verifica que:")
         print("   - La base de datos esté creada")
         print("   - Las credenciales sean correctas")
-        print("   - PostgreSQL esté ejecutándose")
+        print("   - La conexión a Supabase esté activa")
         return False
 
 def main():
@@ -135,11 +174,11 @@ def main():
     # Paso 2: Verificar PostgreSQL
     print("\n📦 Paso 2: Verificando conexión a PostgreSQL...")
     if not test_postgresql_connection():
-        print("\n❌ No se puede conectar a PostgreSQL.")
+        print("\n❌ No se puede conectar a PostgreSQL en Supabase.")
         print("\n🔧 Pasos para solucionar:")
-        print("   1. Verifica que PostgreSQL esté instalado")
-        print("   2. Inicia el servicio: net start postgresql-x64-17")
-        print("   3. Confirma las credenciales en el archivo .env")
+        print("   1. Verifica que la cadena de conexión en DATABASE_URL sea correcta")
+        print("   2. Asegúrate de que la base de datos en Supabase esté activa")
+        print("   3. Comprueba que la IP desde donde te conectas esté permitida")
         print("   4. Ejecuta este script nuevamente")
         sys.exit(1)
     
@@ -173,15 +212,12 @@ def main():
     print("   2. Ve a http://localhost:5000")
     print("   3. Crea un usuario administrador en: /admin/create_admin")
     print(f"\n🔧 Información de conexión:")
-    print(f"   - Host: {DB_HOST}")
-    print(f"   - Puerto: {DB_PORT}") 
-    print(f"   - Base de datos: {DB_NAME}")
-    print(f"   - Usuario: {DB_USER}")
+    print("   - Usando base de datos remota en Supabase")
+    print("   - Conexión mediante URL segura")
     print("\n📊 Para administrar la base de datos:")
-    print("   - Abre pgAdmin 4")
-    print(f"   - Conecta a {DB_HOST}:{DB_PORT}")
-    print(f"   - Usuario: {DB_USER}")
-    print(f"   - Busca la base de datos: {DB_NAME}")
+    print("   - Accede al panel de control de Supabase")
+    print("   - Ve a la sección 'Database' o 'SQL Editor'")
+    print("   - Utiliza las herramientas de Supabase para gestionar tablas y datos")
 
 if __name__ == "__main__":
     main()
